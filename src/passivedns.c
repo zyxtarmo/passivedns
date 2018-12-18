@@ -44,6 +44,7 @@
 #include <limits.h>
 #include "passivedns.h"
 #include "dns.h"
+#include "kafka.h"
 
 #ifdef HAVE_JSON
 #include <jansson.h>
@@ -61,6 +62,8 @@
 globalconfig config;
 connection *bucket[BUCKET_SIZE];
 uint8_t signal_reopen_log_files = 0;
+rd_kafka_t *rk;
+rd_kafka_topic_t *rkt_q, *rkt_nx;
 
 /*  I N T E R N A L   P R O T O T Y P E S  ***********************************/
 static void usage();
@@ -1127,6 +1130,8 @@ void usage()
 #endif /* HAVE_PFRING */
     olog(" -l <file>       Logfile normal queries (default: /var/log/passivedns.log).\n");
     olog(" -L <file>       Logfile for SRC Error queries (default: /var/log/passivedns.log).\n");
+    olog(" -k <topic>      Kafka topic for queries (default: passivedns).\n");
+    olog(" -B <broker>     Kafka broker host:port (default: localhost:9092).");
     olog(" -y              Log to syslog (uses local7 syslog facility).\n");
     olog(" -Y              Log NXDOMAIN to syslog.\n");
     olog(" -d <delimiter>  Delimiter between fields in log file (default: ||).\n");
@@ -1181,7 +1186,8 @@ void show_version()
     olog("[*] PassiveDNS %s\n", VERSION);
     olog("[*] By Edward Bjarte Fjellskål <edward.fjellskaal@gmail.com>\n");
     olog("[*] Using %s\n", pcap_lib_version());
-    olog("[*] Using ldns version %s\n",ldns_version());
+    olog("[*] Using ldns version %s\n", ldns_version());
+    olog("[*] Using rdkafka version %s\n", rd_kafka_version_str());
 #ifdef HAVE_PFRING
     /* Print PF_RING version if PF_RING is used */
     if (config.use_pfring) {
@@ -1222,6 +1228,11 @@ int main(int argc, char *argv[])
     config.output_log_nxd = 0;
     config.output_syslog = 0;
     config.output_syslog_nxd = 0;
+    config.output_kafka_log = 0;
+    config.output_kafka_log_nxd = 0;
+    config.output_kafka_topic = "passivedns";
+    config.kafka_broker = "localhost:9092";
+    // config.kafka_rk = 0;
     /* Default memory limit: 256 MB */
     config.mem_limit_max = (256 * 1024 * 1024);
     config.dnsprinttime = DNSPRINTTIME;
@@ -1259,7 +1270,7 @@ int main(int argc, char *argv[])
     signal(SIGUSR1, print_pdns_stats);
     signal(SIGUSR2, expire_all_dns_records);
 
-#define ARGS "i:H:r:qc:nyYNjJl:s:L:d:hb:Dp:C:P:S:f:X:u:g:T:V"
+#define ARGS "i:H:r:qc:nyYNjJl:s:L:d:hb:Dp:C:P:S:f:X:u:g:T:V:k:B"
 
     while ((ch = getopt(argc, argv, ARGS)) != -1)
         switch (ch) {
@@ -1360,6 +1371,14 @@ int main(int argc, char *argv[])
             olog("\n");
             exit(0);
             break;
+        case 'k':
+			config.output_kafka_log = 1;
+			config.output_kafka_log_nxd = 1;
+			config.output_kafka_topic = optarg;
+			break;
+        case 'B':
+			config.kafka_broker = optarg;
+			break;
         case '?':
             elog("unrecognized argument: '%c'\n", optopt);
             break;
@@ -1412,6 +1431,15 @@ int main(int argc, char *argv[])
             }
         }
     }
+
+	/* Init Kafka query and NXDOMAIN log connection */
+    if (config.output_kafka_log && config.output_kafka_log_nxd) {
+		if (init_kafka(config.kafka_broker, config.output_kafka_topic, 
+			config.output_kafka_topic, rk, rkt_q, rkt_nx) != 0) {
+				elog("[!] Error initiating Kafka connection %s\n", config.kafka_broker);
+                exit(1);
+		}
+	}
 
     show_version();
 

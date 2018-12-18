@@ -1,7 +1,7 @@
 #Makefile
 AUTOMAKE_OPTIONS = -Wno-portability
 
-OBJECTS=passivedns.o dns.o
+OBJECTS=passivedns.o dns.o kafka.o
 bin_PROGRAMS=passivedns
 
 all: $(bin_PROGRAMS)

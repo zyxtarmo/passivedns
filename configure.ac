@@ -174,6 +174,41 @@ if test "$LIBLDNS_L" = "no"; then
     exit 1
 fi
 
+# Checks for rdkafka library
+AC_ARG_WITH(rdkafka_includes,
+	    [  --with-rdkafka-includes=DIR	rdkafka include directory],
+	    [with_rdkafka_includes="$withval"],[with_rdkafka_includes="no"])
+
+AC_ARG_WITH(rdkafka_libraries,
+            [  --with-rdkafka-libraries=DIR      rdkafka library directory],
+            [with_rdkafka_libraries="$withval"],[with_rdkafka_libraries="no"])
+
+if test "$with_rdkafka_includes" != "no"; then
+    CPPFLAGS="${CPPFLAGS} -I${with_rdkafka_includes}"
+fi
+
+if test "$with_rdkafka_libraries" != "no"; then
+    LDFLAGS="${LDFLAGS} -L${with_rdkafka_libraries}"
+fi
+
+LDFLAGS="${LDFLAGS} -lrdkafka"
+
+# Check or rdkafka headers
+AC_CHECK_HEADER(librdkafka/rdkafka.h,,LIBRDKAFKA_H="no")
+
+if test "$LIBRDKAFKA_H" = "no"; then
+    echo -e "\n  ERROR! rdkafka headers not found\n"
+    exit 1
+fi
+
+# Check for rdkafka library 
+AC_CHECK_LIB(rdkafka,rd_kafka_version,,LIBRDKAFKA_L="no")
+
+if test "$LIBRDKAFKA_L" = "no"; then
+    echo -e "\n  ERROR! rdkafka library not found\n"
+    exit 1
+fi
+
 # Checks for PF_RING.
 AC_ARG_ENABLE(pfring,
     AS_HELP_STRING([--enable-pfring], [Enable PF_RING support]))

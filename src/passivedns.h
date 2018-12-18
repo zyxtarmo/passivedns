@@ -500,6 +500,10 @@ typedef struct _globalconfig {
     uint8_t             output_log_nxd;    /* Log NXDOMAIN to log file */
     uint8_t             output_syslog;     /* Log to syslog */
     uint8_t             output_syslog_nxd; /* Log NXDOMAIN to syslog */
+    uint8_t				output_kafka_log;  /* Log to Kafka */
+    uint8_t				output_kafka_log_nxd;	/* Log NXDOMAIN to Kafka */
+    char				*output_kafka_topic;    /* Kafka topic to write to */
+    char				*kafka_broker;    	    /* Kafka connection to zookeeper */
 #ifdef HAVE_JSON
     uint8_t             use_json;          /* Use JSON as output in log */
     uint8_t             use_json_nxd;      /* Use JSON as output in NXDOMAIN log */

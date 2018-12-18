@@ -35,6 +35,8 @@
 #include <jansson.h>
 #endif /* HAVE_JSON */
 
+#include "kafka.h"
+
 globalconfig config;
 
 /* The 12th Carol number and 7th Carol prime, 16769023, is also a Carol emirp */
