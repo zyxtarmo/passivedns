@@ -26,6 +26,8 @@
 #include <pfring.h>
 #endif /* HAVE_PFRING */
 
+#include <librdkafka/rdkafka.h>
+
 /*  D E F I N E S  ************************************************************/
 #define TIMEOUT                       60
 #define BUCKET_SIZE                   65537
@@ -500,10 +502,13 @@ typedef struct _globalconfig {
     uint8_t             output_log_nxd;    /* Log NXDOMAIN to log file */
     uint8_t             output_syslog;     /* Log to syslog */
     uint8_t             output_syslog_nxd; /* Log NXDOMAIN to syslog */
-    uint8_t				output_kafka_log;  /* Log to Kafka */
-    uint8_t				output_kafka_log_nxd;	/* Log NXDOMAIN to Kafka */
-    char				*output_kafka_topic;    /* Kafka topic to write to */
-    char				*kafka_broker;    	    /* Kafka connection to zookeeper */
+    uint8_t				output_kafka_broker;		/* Use Kafka output */
+    char				*output_kafka_topic;        /* Kafka topic to write for log */
+    char				*output_kafka_topic_nxd;    /* Kafka topic to write for NXDOMAIN */
+    char				*kafka_broker;    	        /* Kafka broker address */
+    rd_kafka_t 			*rk;					/* Kafka broker connection */
+	rd_kafka_topic_t 	*rkt_q;					/* Kafka query topic */
+	rd_kafka_topic_t	*rkt_nx;				/* Kafka NXDOMAIN topic */
 #ifdef HAVE_JSON
     uint8_t             use_json;          /* Use JSON as output in log */
     uint8_t             use_json_nxd;      /* Use JSON as output in NXDOMAIN log */

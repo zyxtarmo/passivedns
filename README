@@ -103,4 +103,9 @@ Compile:
 	./configure --enable-json && make 
 
 Run:
-	./passivedns -k <kafka_topic> -B <broker_addr:port>
+	./passivedns [-k <kafka_topic>] [-K <kafka_nxdomain_topic>] -B <broker_addr:port>
+	default topics are pdns and pdnsnxd
+
+Note that kafka output plugin activates JSON log and NXDOMAIN log format.
+
+ 

@@ -690,19 +690,21 @@ void print_passet(pdns_record *l, pdns_asset *p, ldns_rr *rr,
     if (p == NULL)
         is_err_record = 1;
 
-    /* Use the correct file descriptor */
-    if (is_err_record && config.output_log_nxd) {
-        if (config.logfile_all)
-            fd = config.logfile_fd;
-        else
-            fd = config.logfile_nxd_fd;
-        if (fd == NULL)
-            return;
-    }
-    else if (!is_err_record && config.output_log) {
-        fd = config.logfile_fd;
-        if (fd == NULL) return;
-    }
+	if (config.output_kafka_broker == 0) {
+	    /* Use the correct file descriptor */
+	    if (is_err_record && config.output_log_nxd) {
+	        if (config.logfile_all)
+	            fd = config.logfile_fd;
+	        else
+	            fd = config.logfile_nxd_fd;
+	        if (fd == NULL)
+	            return;
+	    }
+	    else if (!is_err_record && config.output_log) {
+	        fd = config.logfile_fd;
+	        if (fd == NULL) return;
+	    }
+	} 
 
     if (is_err_record) {
         u_ntop(l->sip, l->af, ip_addr_s);
@@ -1155,11 +1157,19 @@ void print_passet(pdns_record *l, pdns_asset *p, ldns_rr *rr,
     }
 #endif /* HAVE_JSON */
 
-    /* Print to log file */
-    if (fd) {
-        fprintf(fd, "%s\n", output);
-        fflush(fd);
-    }
+    if (config.output_kafka_broker == 0) {
+	    /* Print to log file */
+	    if (fd) {
+	        fprintf(fd, "%s\n", output);
+	        fflush(fd);
+	    }
+	} else {
+		if (is_err_record) {
+			send_query_data_to_kafka(config.rk, config.rkt_nx, output);
+		} else {
+			send_query_data_to_kafka(config.rk, config.rkt_q, output);
+		}	
+	}
 
     /* Print to syslog */
     if ((is_err_record && config.output_syslog_nxd) ||

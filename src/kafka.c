@@ -10,48 +10,59 @@
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
-
-
-/* Typical include path would be <librdkafka/rdkafka.h>, but this program
- * is builtin from within the librdkafka source tree and thus differs. */
-
 #include <librdkafka/rdkafka.h>
 
+#include "kafka.h"
+
+/* internal */
+static void msg_delivered (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage, void *opaque);
+
+/* functions */
 /**
  * Message delivery report callback using the richer rd_kafka_message_t object.
  */
-static void msg_delivered (rd_kafka_t *rk,
-                           const rd_kafka_message_t *rkmessage, void *opaque) {
-        if (rkmessage->err)
-		fprintf(stderr, "%% Message delivery failed: %s\n",
-                        rd_kafka_err2str(rkmessage->err));
+static void msg_delivered (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage, void *opaque) 
+{
+    if (rkmessage->err)
+	elog("[!] Message delivery failed: %s\n", rd_kafka_err2str(rkmessage->err));
+}
 
-/* Note: commented out from example in librdkafka.
+/**
+ * Produce message
+ */ 
+int send_query_data_to_kafka(rd_kafka_t *rk, rd_kafka_topic_t *rkt, char *kafkadata)
+{
+	int len;
 	
-	else if (!quiet)
-		fprintf(stderr,
-                        "%% Message delivered (%zd bytes, offset %"PRId64", "
-                        "partition %"PRId32"): %.*s\n",
-                        rkmessage->len, rkmessage->offset,
-			rkmessage->partition,
-			(int)rkmessage->len, (const char *)rkmessage->payload);
-*/
-
+	len = strlen(kafkadata);
+	
+	retry:  
+		if (rd_kafka_produce(
+            rkt, 					/* Topic object */
+            RD_KAFKA_PARTITION_UA,  /* Use builtin partitioner to select partition*/
+            RD_KAFKA_MSG_F_COPY,    /* Make a copy of the payload. */
+            kafkadata, len, NULL, 0, NULL	/* Message payload (value) and length, Optional key and its length */
+            ) == -1) {
+				elog( "[!] Failed to produce to topic %s: %s\n",	/* Failed to *enqueue* message for producing */
+                    rd_kafka_topic_name(rkt),
+                    rd_kafka_err2str(rd_kafka_last_error()));
+				
+				if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
+					rd_kafka_poll(rk, 1000); 	/* Max wait 1000 msec */
+                    goto retry;
+                }
+                
+			} else {
+				rd_kafka_poll(rk, 0); 			/* Non-blocking */
+			}
 }
 
-/**
- * 
- */ 
-int send_query_data(rd_kafka_topic_t *rkt_q, char *kafkadata)
+void shutdown_kafka(rd_kafka_t *rk, rd_kafka_topic_t *rkt_q, rd_kafka_topic_t *rkt_nx) 
 {
-}
-
-/**
- * 
- */ 
-int send_nx_data(rd_kafka_topic_t *rkt_nx, char *kafkadata)
-{
-
+	rd_kafka_flush(rk, 10*1000); 				/* Max wait 10 sec */
+	rd_kafka_topic_destroy(rkt_q);
+	rd_kafka_topic_destroy(rkt_nx);
+    rd_kafka_destroy(rk);
 }
 
 /* Initialize Kafka connection, return 0 if success

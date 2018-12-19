@@ -62,8 +62,6 @@
 globalconfig config;
 connection *bucket[BUCKET_SIZE];
 uint8_t signal_reopen_log_files = 0;
-rd_kafka_t *rk;
-rd_kafka_topic_t *rkt_q, *rkt_nx;
 
 /*  I N T E R N A L   P R O T O T Y P E S  ***********************************/
 static void usage();
@@ -1057,6 +1055,9 @@ void game_over()
         if (config.logfile_nxd_fd != NULL && config.logfile_nxd_fd != stdout)
             fclose(config.logfile_nxd_fd);
 
+		if (config.output_kafka_broker)
+			shutdown_kafka(config.rk, config.rkt_q, config.rkt_nx);
+		
         free_config();
         olog("\n[*] passivedns ended.\n");
         exit(0);
@@ -1228,9 +1229,9 @@ int main(int argc, char *argv[])
     config.output_log_nxd = 0;
     config.output_syslog = 0;
     config.output_syslog_nxd = 0;
-    config.output_kafka_log = 0;
-    config.output_kafka_log_nxd = 0;
-    config.output_kafka_topic = "passivedns";
+    config.output_kafka_broker = 0;
+    config.output_kafka_topic = "pdns";
+    config.output_kafka_topic_nxd = "pdnsnxd";
     config.kafka_broker = "localhost:9092";
     // config.kafka_rk = 0;
     /* Default memory limit: 256 MB */
@@ -1270,7 +1271,7 @@ int main(int argc, char *argv[])
     signal(SIGUSR1, print_pdns_stats);
     signal(SIGUSR2, expire_all_dns_records);
 
-#define ARGS "i:H:r:qc:nyYNjJl:s:L:d:hb:Dp:C:P:S:f:X:u:g:T:V:k:B"
+#define ARGS "i:H:r:qc:nyYNjJl:s:L:d:hb:Dp:C:P:S:f:X:u:g:T:V:k:K:B:"
 
     while ((ch = getopt(argc, argv, ARGS)) != -1)
         switch (ch) {
@@ -1372,11 +1373,15 @@ int main(int argc, char *argv[])
             exit(0);
             break;
         case 'k':
-			config.output_kafka_log = 1;
-			config.output_kafka_log_nxd = 1;
 			config.output_kafka_topic = optarg;
 			break;
+        case 'K':
+			config.output_kafka_topic_nxd = optarg;
+			break;
         case 'B':
+			config.output_kafka_broker = 1;
+			config.use_json_nxd = 1;
+			config.use_json = 1;
 			config.kafka_broker = optarg;
 			break;
         case '?':
@@ -1433,9 +1438,10 @@ int main(int argc, char *argv[])
     }
 
 	/* Init Kafka query and NXDOMAIN log connection */
-    if (config.output_kafka_log && config.output_kafka_log_nxd) {
-		if (init_kafka(config.kafka_broker, config.output_kafka_topic, 
-			config.output_kafka_topic, rk, rkt_q, rkt_nx) != 0) {
+    if (config.output_kafka_broker) {
+		
+		if ( init_kafka(config.kafka_broker, config.output_kafka_topic, 
+			config.output_kafka_topic_nxd, config.rk, config.rkt_q, config.rkt_nx) != 0) {
 				elog("[!] Error initiating Kafka connection %s\n", config.kafka_broker);
                 exit(1);
 		}
