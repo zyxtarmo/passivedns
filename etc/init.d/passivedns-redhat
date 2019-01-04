@@ -80,12 +80,16 @@ if [ "$DIRCHROOT" != "" ] ; then
         DIRCHROOT="-T $DIRCHROOT"
 fi
 
+if [ "$BROKER" != "" ] ; then
+        BROKER="-B $BROKER"
+fi
+
 ######################################
 
 RETVAL=0
 
 function start(){
-    daemon $prog -D $INTERFACE $PIDFILE $LOGFILE $NXDOMAINLOGFILE $LOGSYSLOG $NXSYSLOG $LOGFIELDS $BPF $SOFTMEM $DNSCACHE $DNSDUPE $DNSRRTYPES $USER $GROUP $DIRCHROOT
+    daemon $prog -D $INTERFACE $PIDFILE $LOGFILE $NXDOMAINLOGFILE $LOGSYSLOG $NXSYSLOG $LOGFIELDS $BPF $SOFTMEM $DNSCACHE $DNSDUPE $DNSRRTYPES $USER $GROUP $DIRCHROOT $BROKER
     RETVAL=$?
     echo
     [ $RETVAL -eq 0 ] && touch $lock

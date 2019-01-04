@@ -64,3 +64,5 @@ DNSRRTYPES=
 #Directory to chroot into
 DIRCHROOT=
 
+# Kafka broker
+BROKER=

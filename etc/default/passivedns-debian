@@ -13,6 +13,7 @@
 #  -u <uid>        User ID to drop privileges to.
 #  -g <gid>        Group ID to drop privileges to.
 #  -T <dir>        Directory to chroot into.
+#  -B <broker:port>		Kafka broker
 #  -D              Run as daemon.
 #  -V              Show version and exit.
 #  -h              This help message.
@@ -41,4 +42,5 @@ RRTYPES="-X 46CDNOPRSTMnx"
 #GID="-g 1"
 #CHROOT="/usr/lib/passivedns/"
 DEAMON="-D"
-ARGS="$INTERFACE $LOGFILE $NXLOGFILE $LOGSYSLOG $NXSYSLOG $MAXMEM $PRINT $RRTYPES $DEAMON"
+BROKER=""
+ARGS="$INTERFACE $LOGFILE $NXLOGFILE $LOGSYSLOG $NXSYSLOG $MAXMEM $PRINT $RRTYPES $DEAMON $BROKER"
