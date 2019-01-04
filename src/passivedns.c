@@ -43,7 +43,6 @@
 #include <ctype.h>
 #include <limits.h>
 #include "passivedns.h"
-#include "logging.h"
 #include "dns.h"
 #include "kafka.h"
 
@@ -1057,7 +1056,7 @@ void game_over()
             fclose(config.logfile_nxd_fd);
 
 		if (config.output_kafka_broker)
-			shutdown_kafka(&config);
+			shutdown_kafka();
 		
         free_config();
         olog("\n[*] passivedns ended.\n");
@@ -1450,7 +1449,7 @@ int main(int argc, char *argv[])
 	/* Init Kafka query and NXDOMAIN log connection */
     if (config.output_kafka_broker) {
 		
-		if ( init_kafka(&config) != 0) {
+		if ( init_kafka() != 0) {
 				selog(LOG_ERR, "Kafka conn error to: %s", config.kafka_broker);
 				elog("[!] Error initiating Kafka connection to %s\n", config.kafka_broker);
                 exit(1);

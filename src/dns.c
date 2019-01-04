@@ -29,7 +29,6 @@
 #include <syslog.h>
 #include <pcap.h>
 #include "passivedns.h"
-#include "logging.h"
 #include "dns.h"
 #include "kafka.h"
 
@@ -1167,16 +1166,14 @@ void print_passet(pdns_record *l, pdns_asset *p, ldns_rr *rr,
 	    }
 	
 	/* Send to Kafka */
-	} else 
-    {
-		
+	} else {
 		if (config.kafka_broker_ready && config.rkt_nx != NULL && config.rkt_q != NULL) {
             if (config.cflags || CONFIG_VERBOSE == CONFIG_VERBOSE)
                 selog(LOG_INFO, "send %lu bytes [%s] to %s", 
                         strlen(output),
                         rd_kafka_topic_name((is_err_record ? config.rkt_nx : config.rkt_q)),
                         output);
-            send_query_data_to_kafka(&config, is_err_record, output, strlen(output));
+            send_query_data_to_kafka(is_err_record, output, strlen(output));
 		} else {
 			selog (LOG_ERR, "Kafka producer is not ready (broker ready == %i || rd_kafka_topic_t == NULL)?",
                 config.kafka_broker_ready);

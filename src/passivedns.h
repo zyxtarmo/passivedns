@@ -572,7 +572,7 @@ typedef struct _globalconfig {
   } \
   while(0)
 #define olog(fmt, ...) do{ if(!(ISSET_CONFIG_QUIET(config))) fprintf(stdout, (fmt), ##__VA_ARGS__); }while(0)
-#define DEBUG 1
+// #define DEBUG 1
 #ifdef DEBUG
 #define dlog(fmt, ...) do { fprintf(stderr, ("[%s:%d(%s)] " fmt), __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__);} while(0)
 #define vlog(v, fmt, ...) do{ if(DEBUG == v) fprintf(stderr, ("[%s:%d(%s)] " fmt), __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__); }while(0)
@@ -581,6 +581,14 @@ typedef struct _globalconfig {
 #define elog(fmt, ...) fprintf(stderr, (fmt), ##__VA_ARGS__);
 #define dlog(fmt, ...) do { ; } while(0)
 #define vlog(fmt, ...) do { ; } while(0)
+#endif
+
+#ifndef selog
+#define selog(fac_pri, fmt, ...) { \
+    openlog("PassiveDNS.kafka", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1); \
+    syslog(fac_pri, fmt, ##__VA_ARGS__); \
+    closelog(); \
+}
 #endif
 
 int cxt_update_client(connection *cxt, packetinfo *pi);

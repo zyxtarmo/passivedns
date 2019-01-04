@@ -91,8 +91,7 @@ I hope PassiveDNS gives you a new tool to fight malware and its herders...
 
 ###############################################################################
 
-Apache Kafka support
-Tarmo Randel, CCDCOE
+Additional development - send DNS query responses and NXDOMAIN to Apache Kafka.
 
 Preparation
 
@@ -102,10 +101,15 @@ Install deps:
 Compile:
 	./configure --enable-json && make 
 
-Run:
+Running
+
 	./passivedns [-k <kafka_topic>] [-K <kafka_nxdomain_topic>] -B <broker_addr:port>
-	default topics are pdns and pdnsnxd
+	[default topics are 'pdns' and 'pdnsnxd']
 
-Note that kafka output plugin activates JSON log and NXDOMAIN log format.
+Note: Kafka output plugin activates JSON output for response log and NXDOMAIN log
+and turns off file logging.
 
- 
+Thank you very Edward Bjarte Fjellskål for this excellent project, you saved me many 
+days of my life!
+
+(c)2019 Tarmo Randel
