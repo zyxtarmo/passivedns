@@ -43,6 +43,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include "passivedns.h"
+#include "logging.h"
 #include "dns.h"
 #include "kafka.h"
 
@@ -1056,7 +1057,7 @@ void game_over()
             fclose(config.logfile_nxd_fd);
 
 		if (config.output_kafka_broker)
-			shutdown_kafka(config.rk, config.rkt_q, config.rkt_nx);
+			shutdown_kafka(&config);
 		
         free_config();
         olog("\n[*] passivedns ended.\n");
@@ -1131,7 +1132,8 @@ void usage()
 #endif /* HAVE_PFRING */
     olog(" -l <file>       Logfile normal queries (default: /var/log/passivedns.log).\n");
     olog(" -L <file>       Logfile for SRC Error queries (default: /var/log/passivedns.log).\n");
-    olog(" -k <topic>      Kafka topic for queries (default: passivedns).\n");
+    olog(" -k <topic>      Kafka topic for queries (default: pdns).\n");
+    olog(" -K <topic>      Kafka topic for NXDOMAIN (default: pdnsnxd).\n");
     olog(" -B <broker>     Kafka broker host:port (default: localhost:9092).");
     olog(" -y              Log to syslog (uses local7 syslog facility).\n");
     olog(" -Y              Log NXDOMAIN to syslog.\n");
@@ -1230,10 +1232,13 @@ int main(int argc, char *argv[])
     config.output_syslog = 0;
     config.output_syslog_nxd = 0;
     config.output_kafka_broker = 0;
+    config.kafka_broker_ready = 0;
     config.output_kafka_topic = "pdns";
     config.output_kafka_topic_nxd = "pdnsnxd";
     config.kafka_broker = "localhost:9092";
-    // config.kafka_rk = 0;
+    config.rk = NULL;
+    config.rkt_q = NULL;
+    config.rkt_nx = NULL;
     /* Default memory limit: 256 MB */
     config.mem_limit_max = (256 * 1024 * 1024);
     config.dnsprinttime = DNSPRINTTIME;
@@ -1271,7 +1276,7 @@ int main(int argc, char *argv[])
     signal(SIGUSR1, print_pdns_stats);
     signal(SIGUSR2, expire_all_dns_records);
 
-#define ARGS "i:H:r:qc:nyYNjJl:s:L:d:hb:Dp:C:P:S:f:X:u:g:T:V:k:K:B:"
+#define ARGS "i:H:r:qvc:nyYNjJl:s:L:d:hb:Dp:C:P:S:f:X:u:g:T:V:k:K:B:"
 
     while ((ch = getopt(argc, argv, ARGS)) != -1)
         switch (ch) {
@@ -1286,6 +1291,9 @@ int main(int argc, char *argv[])
             break;
         case 'q':
             config.cflags |= CONFIG_QUIET;
+            break;
+        case 'v':
+            config.cflags |= CONFIG_VERBOSE;
             break;
         case 'L':
             config.output_log_nxd = 1;
@@ -1437,13 +1445,20 @@ int main(int argc, char *argv[])
         }
     }
 
+	// uint8_t *kafka_broker_ready_ptr = &config.kafka_broker_ready;
+	
 	/* Init Kafka query and NXDOMAIN log connection */
     if (config.output_kafka_broker) {
 		
-		if ( init_kafka(config.kafka_broker, config.output_kafka_topic, 
-			config.output_kafka_topic_nxd, config.rk, config.rkt_q, config.rkt_nx) != 0) {
-				elog("[!] Error initiating Kafka connection %s\n", config.kafka_broker);
+		if ( init_kafka(&config) != 0) {
+				selog(LOG_ERR, "Kafka conn error to: %s", config.kafka_broker);
+				elog("[!] Error initiating Kafka connection to %s\n", config.kafka_broker);
                 exit(1);
+		} else {
+			selog(LOG_INFO, "Kafka init finished: kafka_broker: %s, output_kafka_topic: %s, output_kafka_topic_nxd: %s, kafka_broker_ready: %i", 
+					config.kafka_broker, config.output_kafka_topic, config.output_kafka_topic_nxd, config.kafka_broker_ready);
+			olog("\n[*] Kafka init finished: %s, %s, %s, %i.\n", 
+					config.kafka_broker, config.output_kafka_topic, config.output_kafka_topic_nxd, config.kafka_broker_ready);
 		}
 	}
 

@@ -503,12 +503,13 @@ typedef struct _globalconfig {
     uint8_t             output_syslog;     /* Log to syslog */
     uint8_t             output_syslog_nxd; /* Log NXDOMAIN to syslog */
     uint8_t				output_kafka_broker;		/* Use Kafka output */
+    uint8_t			    kafka_broker_ready;			/* is Kafka ready */
     char				*output_kafka_topic;        /* Kafka topic to write for log */
     char				*output_kafka_topic_nxd;    /* Kafka topic to write for NXDOMAIN */
     char				*kafka_broker;    	        /* Kafka broker address */
-    rd_kafka_t 			*rk;					/* Kafka broker connection */
-	rd_kafka_topic_t 	*rkt_q;					/* Kafka query topic */
-	rd_kafka_topic_t	*rkt_nx;				/* Kafka NXDOMAIN topic */
+    rd_kafka_t 			*rk;					/* Pointer to Kafka broker connection */
+	rd_kafka_topic_t 	*rkt_q;				/* Pointer to Kafka query topic */
+	rd_kafka_topic_t	*rkt_nx;				/* Pointer to Kafka NXDOMAIN topic */
 #ifdef HAVE_JSON
     uint8_t             use_json;          /* Use JSON as output in log */
     uint8_t             use_json_nxd;      /* Use JSON as output in NXDOMAIN log */
@@ -571,7 +572,7 @@ typedef struct _globalconfig {
   } \
   while(0)
 #define olog(fmt, ...) do{ if(!(ISSET_CONFIG_QUIET(config))) fprintf(stdout, (fmt), ##__VA_ARGS__); }while(0)
-//#define DEBUG 1
+#define DEBUG 1
 #ifdef DEBUG
 #define dlog(fmt, ...) do { fprintf(stderr, ("[%s:%d(%s)] " fmt), __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__);} while(0)
 #define vlog(v, fmt, ...) do{ if(DEBUG == v) fprintf(stderr, ("[%s:%d(%s)] " fmt), __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__); }while(0)
@@ -585,4 +586,3 @@ typedef struct _globalconfig {
 int cxt_update_client(connection *cxt, packetinfo *pi);
 int cxt_update_unknown(connection *cxt, packetinfo *pi);
 int cxt_update_server(connection *cxt, packetinfo *pi);
-

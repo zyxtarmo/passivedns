@@ -29,13 +29,13 @@
 #include <syslog.h>
 #include <pcap.h>
 #include "passivedns.h"
+#include "logging.h"
 #include "dns.h"
+#include "kafka.h"
 
 #ifdef HAVE_JSON
 #include <jansson.h>
 #endif /* HAVE_JSON */
-
-#include "kafka.h"
 
 globalconfig config;
 
@@ -657,6 +657,7 @@ void print_passet(pdns_record *l, pdns_asset *p, ldns_rr *rr,
     char *rr_rcode;
     char buffer[1000] = "";
     char *output = buffer;
+    char *bufptr;
     int offset = 0;
     uint8_t is_err_record = 0;
 
@@ -1157,18 +1158,30 @@ void print_passet(pdns_record *l, pdns_asset *p, ldns_rr *rr,
     }
 #endif /* HAVE_JSON */
 
+	/* Print to log file */
     if (config.output_kafka_broker == 0) {
-	    /* Print to log file */
+		
 	    if (fd) {
 	        fprintf(fd, "%s\n", output);
 	        fflush(fd);
 	    }
-	} else {
-		if (is_err_record) {
-			send_query_data_to_kafka(config.rk, config.rkt_nx, output);
+	
+	/* Send to Kafka */
+	} else 
+    {
+		
+		if (config.kafka_broker_ready && config.rkt_nx != NULL && config.rkt_q != NULL) {
+            if (config.cflags || CONFIG_VERBOSE == CONFIG_VERBOSE)
+                selog(LOG_INFO, "send %lu bytes [%s] to %s", 
+                        strlen(output),
+                        rd_kafka_topic_name((is_err_record ? config.rkt_nx : config.rkt_q)),
+                        output);
+            send_query_data_to_kafka(&config, is_err_record, output, strlen(output));
 		} else {
-			send_query_data_to_kafka(config.rk, config.rkt_q, output);
-		}	
+			selog (LOG_ERR, "Kafka producer is not ready (broker ready == %i || rd_kafka_topic_t == NULL)?",
+                config.kafka_broker_ready);
+			elog ("[!] Kafka producer is not ready\n");
+		}
 	}
 
     /* Print to syslog */
