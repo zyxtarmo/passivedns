@@ -27,6 +27,7 @@
 #endif /* HAVE_PFRING */
 
 #include <librdkafka/rdkafka.h>
+#include <zookeeper/zookeeper.h>
 
 /*  D E F I N E S  ************************************************************/
 #define TIMEOUT                       60
@@ -510,6 +511,9 @@ typedef struct _globalconfig {
     rd_kafka_t 			*rk;					/* Pointer to Kafka broker connection */
 	rd_kafka_topic_t 	*rkt_q;				/* Pointer to Kafka query topic */
 	rd_kafka_topic_t	*rkt_nx;				/* Pointer to Kafka NXDOMAIN topic */
+    zhandle_t           *zh;
+    char                *zookeeper;
+    char                brokers[1024];
 #ifdef HAVE_JSON
     uint8_t             use_json;          /* Use JSON as output in log */
     uint8_t             use_json_nxd;      /* Use JSON as output in NXDOMAIN log */

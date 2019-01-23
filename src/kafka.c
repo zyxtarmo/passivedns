@@ -34,6 +34,8 @@
 #include "passivedns.h"
 #include "kafka.h"
 
+#include <jansson.h>
+
 globalconfig config;
 
 rd_kafka_conf_t *rk_conf;
@@ -75,13 +77,97 @@ int send_query_data_to_kafka(uint8_t is_err_record, char *kafkadata, size_t len)
 				
 				if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
 					rd_kafka_poll(config.rk, 1000); 	/* Max wait 1000 msec */
-                    goto retry;
+                    // goto retry; /* disable retry for testing */
                 }
-
 			} else {
 				rd_kafka_poll(config.rk, 0); 				/* Non-blocking */
-
 			}
+}
+
+/**
+ * From https://github.com/edenhill/librdkafka/blob/master/examples/rdkafka_zookeeper_example.c
+ */
+
+static void watcher(zhandle_t *zh, int type, int state, const char *path, void *watcherCtx)
+{
+	char brokers[1024];
+	if (type == ZOO_CHILD_EVENT && strncmp(path, BROKER_PATH, sizeof(BROKER_PATH) - 1) == 0)
+	{
+		brokers[0] = '\0';
+		set_brokerlist_from_zookeeper(zh, brokers);
+		if (brokers[0] != '\0' && config.rk != NULL)
+		{
+			rd_kafka_brokers_add(config.rk, brokers);
+			rd_kafka_poll(config.rk, 10);
+		}
+	}
+}
+
+static zhandle_t* initialize_zookeeper(const char * zookeeper, const int debug)
+{
+	zhandle_t *zh;
+	if (debug)
+	{
+		zoo_set_debug_level(ZOO_LOG_LEVEL_DEBUG);
+	}
+	zh = zookeeper_init(zookeeper, watcher, 10000, 0, 0, 0);
+	if (zh == NULL)
+	{
+		fprintf(stderr, "Zookeeper connection not established.");
+		exit(1);
+	}
+	return zh;
+}
+
+static void set_brokerlist_from_zookeeper(zhandle_t *zzh, char *brokers)
+{
+	if (zzh)
+	{
+		struct String_vector brokerlist;
+		if (zoo_get_children(zzh, BROKER_PATH, 1, &brokerlist) != ZOK)
+		{
+			fprintf(stderr, "No brokers found on path %s\n", BROKER_PATH);
+			return;
+		}
+
+		int i;
+		char *brokerptr = brokers;
+		for (i = 0; i < brokerlist.count; i++)
+		{
+			char path[255], cfg[1024];
+			sprintf(path, "/brokers/ids/%s", brokerlist.data[i]);
+			int len = sizeof(cfg);
+			zoo_get(zzh, path, 0, cfg, &len, NULL);
+
+			if (len > 0)
+			{
+				cfg[len] = '\0';
+				json_error_t jerror;
+				json_t *jobj = json_loads(cfg, 0, &jerror);
+				if (jobj)
+				{
+					json_t *jhost = json_object_get(jobj, "host");
+					json_t *jport = json_object_get(jobj, "port");
+
+					if (jhost && jport)
+					{
+						const char *host = json_string_value(jhost);
+						const int   port = json_integer_value(jport);
+						sprintf(brokerptr, "%s:%d", host, port);
+
+						brokerptr += strlen(brokerptr);
+						if (i < brokerlist.count - 1)
+						{
+							*brokerptr++ = ',';
+						}
+					}
+					json_decref(jobj);
+				}
+			}
+		}
+		deallocate_String_vector(&brokerlist);
+		printf("Found brokers %s\n", brokers);
+	}
 }
 
 void shutdown_kafka() 
@@ -90,6 +176,8 @@ void shutdown_kafka()
 	rd_kafka_topic_destroy(config.rkt_q);
 	rd_kafka_topic_destroy(config.rkt_nx);
     rd_kafka_destroy(config.rk);
+    rd_kafka_wait_destroyed(2000);
+    zookeeper_close(config.zh);
     selog(LOG_NOTICE, "Kafka connection(s) closed.");
 }
 
@@ -98,18 +186,33 @@ void shutdown_kafka()
 int init_kafka() {
 
     char errstr[512];       /* librdkafka API error reporting buffer */
+	memset(config.brokers, 0, sizeof(config.brokers));
+	int kafka_conf_result = 0;
 
 	rk_conf 		= rd_kafka_conf_new();
 	rkt_conf 		= rd_kafka_topic_conf_new();
 	rkt_nxd_conf 	= rd_kafka_topic_conf_new();
 	
+	config.zh = initialize_zookeeper(config.zookeeper, (config.cflags & CONFIG_VERBOSE));
+	set_brokerlist_from_zookeeper(config.zh, config.brokers);
+
 	// create kafka conf oject
-	if (rd_kafka_conf_set (rk_conf, 
+	if (config.output_kafka_broker == 2) {
+		kafka_conf_result = rd_kafka_conf_set(rk_conf, 
+				"metadata.broker.list",
+				config.brokers, 
+				errstr, 
+				sizeof(errstr));
+
+	} else {
+		kafka_conf_result = rd_kafka_conf_set (rk_conf, 
 				"bootstrap.servers", 
 				config.kafka_broker, 
 				errstr, 
-				sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+				sizeof(errstr));
+	}
 
+	if ( kafka_conf_result != RD_KAFKA_CONF_OK) {
         selog(LOG_ERR, "Kafka conf set error: %s", errstr);
         elog("[!] %s\n", errstr);
         return 1;

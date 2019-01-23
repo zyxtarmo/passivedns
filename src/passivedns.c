@@ -1055,7 +1055,7 @@ void game_over()
         if (config.logfile_nxd_fd != NULL && config.logfile_nxd_fd != stdout)
             fclose(config.logfile_nxd_fd);
 
-		if (config.output_kafka_broker)
+		if (config.output_kafka_broker > 0)
 			shutdown_kafka();
 		
         free_config();
@@ -1133,7 +1133,8 @@ void usage()
     olog(" -L <file>       Logfile for SRC Error queries (default: /var/log/passivedns.log).\n");
     olog(" -k <topic>      Kafka topic for queries (default: pdns).\n");
     olog(" -K <topic>      Kafka topic for NXDOMAIN (default: pdnsnxd).\n");
-    olog(" -B <broker>     Kafka broker host:port (default: localhost:9092).");
+    olog(" -z <zookeeper:port>  Apache zookeeper host:port.\n");
+    olog(" -B <broker:port>     Kafka broker host:port.\n");
     olog(" -y              Log to syslog (uses local7 syslog facility).\n");
     olog(" -Y              Log NXDOMAIN to syslog.\n");
     olog(" -d <delimiter>  Delimiter between fields in log file (default: ||).\n");
@@ -1235,9 +1236,11 @@ int main(int argc, char *argv[])
     config.output_kafka_topic = "pdns";
     config.output_kafka_topic_nxd = "pdnsnxd";
     config.kafka_broker = "localhost:9092";
+    config.zookeeper = "localhost:2181";
     config.rk = NULL;
     config.rkt_q = NULL;
     config.rkt_nx = NULL;
+    config.zh = NULL;
     /* Default memory limit: 256 MB */
     config.mem_limit_max = (256 * 1024 * 1024);
     config.dnsprinttime = DNSPRINTTIME;
@@ -1275,7 +1278,7 @@ int main(int argc, char *argv[])
     signal(SIGUSR1, print_pdns_stats);
     signal(SIGUSR2, expire_all_dns_records);
 
-#define ARGS "i:H:r:qvc:nyYNjJl:s:L:d:hb:Dp:C:P:S:f:X:u:g:T:V:k:K:B:"
+#define ARGS "i:H:r:qvc:nyYNjJl:s:L:d:hb:Dp:C:P:S:f:X:u:g:T:V:k:K:B:z:"
 
     while ((ch = getopt(argc, argv, ARGS)) != -1)
         switch (ch) {
@@ -1391,6 +1394,12 @@ int main(int argc, char *argv[])
 			config.use_json = 1;
 			config.kafka_broker = optarg;
 			break;
+        case 'z':
+            config.output_kafka_broker = 2;
+            config.use_json_nxd = 1;
+            config.use_json = 1;
+            config.zookeeper = optarg;            
+            break;
         case '?':
             elog("unrecognized argument: '%c'\n", optopt);
             break;
@@ -1445,9 +1454,9 @@ int main(int argc, char *argv[])
     }
 
 	// uint8_t *kafka_broker_ready_ptr = &config.kafka_broker_ready;
-	
+
 	/* Init Kafka query and NXDOMAIN log connection */
-    if (config.output_kafka_broker) {
+    if (config.output_kafka_broker > 0) {
 		
 		if ( init_kafka() != 0) {
 				selog(LOG_ERR, "Kafka conn error to: %s", config.kafka_broker);

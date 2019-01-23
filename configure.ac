@@ -209,6 +209,41 @@ if test "$LIBRDKAFKA_L" = "no"; then
     exit 1
 fi
 
+# Checks for zookeeper_mt library
+AC_ARG_WITH(zookeeper_includes,
+	    [  --with-zookeeper-includes=DIR	zookeeper include directory],
+	    [with_zookeeper_includes="$withval"],[with_zookeeper_includes="no"])
+
+AC_ARG_WITH(zookeeper_libraries,
+            [  --with-zookeeper-libraries=DIR      zookeeper library directory],
+            [with_zookeeper_libraries="$withval"],[with_zookeeper_libraries="no"])
+
+if test "$with_zookeeper_includes" != "no"; then
+    CPPFLAGS="${CPPFLAGS} -I${with_zookeeper_includes}"
+fi
+
+if test "$with_zookeeper_libraries" != "no"; then
+    LDFLAGS="${LDFLAGS} -L${with_zookeeper_libraries}"
+fi
+
+LDFLAGS="${LDFLAGS} -lzookeeper_mt"
+
+# Check or zookeeper headers
+AC_CHECK_HEADER(zookeeper/zookeeper.h,,LIBZOOKEEPER_H="no")
+
+if test "$LIBZOOKEEPER_H" = "no"; then
+    echo -e "\n  ERROR! zookeeper headers not found\n"
+    exit 1
+fi
+
+# Check for zookeeper library 
+AC_CHECK_LIB(zookeeper_mt,zerror,,LIBZOOKEEPER_L="no")
+
+if test "$LIBZOOKEEPER_L" = "no"; then
+    echo -e "\n  ERROR! zookeeper library not found\n"
+    exit 1
+fi
+
 # Checks for PF_RING.
 AC_ARG_ENABLE(pfring,
     AS_HELP_STRING([--enable-pfring], [Enable PF_RING support]))

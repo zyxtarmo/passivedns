@@ -96,7 +96,7 @@ Additional development - send DNS query responses and NXDOMAIN to Apache Kafka.
 Preparation
 
 Install deps:
-	apt-get install libjansson-dev librdkafka-dev
+	apt-get install libjansson-dev librdkafka-dev libzookeeper-mt-dev
 	
 Compile:
 	./configure --enable-json && make 
