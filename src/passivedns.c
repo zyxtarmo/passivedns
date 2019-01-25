@@ -1464,9 +1464,11 @@ int main(int argc, char *argv[])
                 exit(1);
 		} else {
 			selog(LOG_INFO, "Kafka init finished: kafka_broker: %s, output_kafka_topic: %s, output_kafka_topic_nxd: %s, kafka_broker_ready: %i", 
-					config.kafka_broker, config.output_kafka_topic, config.output_kafka_topic_nxd, config.kafka_broker_ready);
+					(config.output_kafka_broker == 1 ? config.kafka_broker : config.zookeeper), config.output_kafka_topic, 
+                        config.output_kafka_topic_nxd, config.kafka_broker_ready);
 			olog("\n[*] Kafka init finished: %s, %s, %s, %i.\n", 
-					config.kafka_broker, config.output_kafka_topic, config.output_kafka_topic_nxd, config.kafka_broker_ready);
+					(config.output_kafka_broker == 1 ? config.kafka_broker : config.zookeeper), config.output_kafka_topic, 
+                        config.output_kafka_topic_nxd, config.kafka_broker_ready);
 		}
 	}
 
