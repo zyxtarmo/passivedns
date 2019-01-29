@@ -77,7 +77,7 @@ int send_query_data_to_kafka(uint8_t is_err_record, char *kafkadata, size_t len)
 				
 				if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
 					rd_kafka_poll(config.rk, 1000); 	/* Max wait 1000 msec */
-                    // goto retry; /* disable retry for testing */
+                    goto retry;
                 }
 			} else {
 				rd_kafka_poll(config.rk, 0); 				/* Non-blocking */
